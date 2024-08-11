@@ -1,4 +1,4 @@
-const Anthropic = require("@anthropic-ai/sdk");
+const { OpenAI } = require('openai');
 const mammoth = require("mammoth");
 const pdfParse = require('pdf-parse');
 const WordExtractor = require("word-extractor");
@@ -6,9 +6,9 @@ const PDFDocument = require('pdfkit');
 
 require('dotenv').config();
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY // Make sure to set your OpenAI API key in the environment variables
+  });
 
 const extractTextFromFile = async (file) => {
   const buffer = file.buffer;
@@ -48,7 +48,8 @@ const simplifyStructure = (obj) => {
   return obj;
 };
 
-const claudeAnalyze = async (files) => {
+
+const openaiAnalyze = async (files) => {
   try {
     const textContents = await Promise.all(files.map(extractTextFromFile));
     
@@ -69,23 +70,29 @@ Output the template as a nested JSON object. Follow these guidelines strictly:
 Provide only the JSON object without any additional text or explanation. Ensure there are no repetitions in the structure. Here are the document contents:
 
 ${textContents.join('\n\n---DOCUMENT SEPARATOR---\n\n')}`;
-
-    const response = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20240620",
+console.log(prompt)
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo", // or "gpt-4" if you have access
+      messages: [
+        { role: "system", content: "You are a helpful assistant that analyzes documents and creates a common JSON template for the documents" },
+        { role: "user", content: prompt }
+      ],
       max_tokens: 4000,
       temperature: 0,
-      messages: [{ role: "user", content: prompt }]
     });
-    console.log("Claude response: ", response);
-    if (!response.content || response.content.length === 0 || !response.content[0].text) {
-      throw new Error('Invalid response from Claude API');
+
+    console.log("OpenAI response: ", response);
+    if (!response.choices || response.choices.length === 0 || !response.choices[0].message.content) {
+      throw new Error('Invalid response from OpenAI API');
     }
 
-    const parsedJson = JSON.parse(response.content[0].text);
+    const parsedJson = JSON.parse(response.choices[0].message.content);
+    console.log("*Return*")
+    console.log(parsedJson)
     return simplifyStructure(parsedJson);
   } catch (error) {
-    console.error('Error calling Claude API:', error.message);
-    throw new Error(`Failed to analyze documents with Claude API: ${error.message}`);
+    console.error('Error calling OpenAI API:', error.message);
+    throw new Error(`Failed to analyze documents with OpenAI API: ${error.message}`);
   }
 };
 
@@ -106,22 +113,22 @@ const generateDocument = async (structure, userInputs) => {
     8. Aim to make each section's word count similar to the corresponding sections in the sample documents provided earlier.
     Please provide the complete generated document content, including all text and table structures. Format the document using markdown syntax for headers and tables.`;
 
-    const response = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20240620",
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo", // or "gpt-3.5-turbo" depending on your needs and access
       messages: [{ role: "user", content: prompt }],
       max_tokens: 4000,
       temperature: 0.2,
     });
 
-    if (!response.content || response.content.length === 0 || !response.content[0].text) {
-      throw new Error('Invalid response from Claude API');
+    if (!response.choices || response.choices.length === 0 || !response.choices[0].message.content) {
+      throw new Error('Invalid response from OpenAI API');
     }
 
-    const generatedContent = response.content[0].text;
+    const generatedContent = response.choices[0].message.content;
     return generatedContent;
   } catch (error) {
-    console.error('Error calling Claude API:', error);
-    throw new Error(`Failed to generate document with Claude API: ${error.message}`);
+    console.error('Error calling OpenAI API:', error);
+    throw new Error(`Failed to generate document with OpenAI API: ${error.message}`);
   }
 };
 
@@ -314,4 +321,4 @@ const createPDF = async (content) => {
   });
 };
 
-module.exports = { claudeAnalyze, generateDocument, createPDF };
+module.exports = { openaiAnalyze, generateDocument, createPDF };

@@ -1,5 +1,6 @@
 // controllers/applicationService.js
-const { claudeAnalyze, generateDocument, createPDF } = require('./claudeaiService');
+const { openaiAnalyze, generateDocument, createPDF } = require('./openaiService');
+//const { claudeAnalyze, generateDocument, createPDF } = require('./claudeaiService');
 
 const analyzeDocuments = async (req, res) => {
   try {
@@ -8,7 +9,7 @@ const analyzeDocuments = async (req, res) => {
       return res.status(400).json({ message: 'No files uploaded' });
     }
 
-    const analysisResult = await claudeAnalyze(files);
+    const analysisResult = await openaiAnalyze(files);
     res.status(200).json(analysisResult);
   } catch (error) {
     console.error('Error in analyzeDocuments:', error);
